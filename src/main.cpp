@@ -1,5 +1,9 @@
 #include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
+
+#include "Adafruit_NeoPixel.h"
+#include "sound.h"
+
+sound Sound(11);
 
 #define DIN_PIN 6   // D6
 #define LED_COUNT 1   // LEDの数
@@ -7,6 +11,7 @@
 #define SWITCH_LEFT_2_PIN 4   // D4
 #define SWITCH_RIGHT_1_PIN 2   // D2
 #define SWITCH_RIGHT_2_PIN 3   // D3
+#define BUZZER_PIN 11   // D11
 
 bool switch_left_1, switch_left_2, switch_right_1, switch_right_2;
 
@@ -24,32 +29,27 @@ void setup() {
       pixels.clear();
       pixels.show();
 
-      //起動音
-      tone(11, 350, 50);
-      delay(200);
-      tone(11, 300, 75);
-      delay(100);
-      tone(11, 450, 75);
+      // 起動音
+      tone(BUZZER_PIN, 700, 100);
       delay(300);
-      tone(11, 450, 250);
-      delay(300);
-      tone(11, 300, 75);
+      tone(BUZZER_PIN, 500, 80);
       delay(100);
-      tone(11, 450, 75);
+      tone(BUZZER_PIN, 600, 80);
+      delay(100);
+      tone(BUZZER_PIN, 700, 80);
       delay(100);
 
-      pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+      pixels.setPixelColor(0, pixels.Color(250, 0, 250));
       pixels.show();
 }
 
 void loop() {
-     //タクトスイッチの状態取得
+      // タクトスイッチの状態取得
       switch_left_1 = digitalRead(SWITCH_LEFT_1_PIN);
       switch_left_2 = digitalRead(SWITCH_LEFT_2_PIN);
       switch_right_1 = digitalRead(SWITCH_RIGHT_1_PIN);
       switch_right_2 = digitalRead(SWITCH_RIGHT_2_PIN);
-      if (switch_left_1 || switch_left_2 || switch_right_1 || switch_right_2) {
-        tone(11, 400, 100);
-        delay(150);
-      }
+      int value;
+      value = Serial.read();
+      Serial.println(value);
 }
