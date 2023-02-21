@@ -29,7 +29,9 @@ Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 bool switch_left_1, switch_left_2, switch_right_1, switch_right_2;
 
 // 受け取るデータ
-uint8_t display_mode = 0, set_mode = 0, set_value;
+uint8_t display_mode = 0, set_mode = 0;
+
+int8_t set_value;
 
 int16_t ball_angle, ball_distance;
 
@@ -65,7 +67,7 @@ void setup() {   // 起動音
       pinMode(SWITCH_RIGHT_1_PIN, INPUT);
       pinMode(SWITCH_RIGHT_2_PIN, INPUT);
 
-      Serial.begin(57600);
+      Serial.begin(28800);
 
       oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);   // OLED初期設定
 
@@ -76,9 +78,6 @@ void setup() {   // 起動音
 }
 
 void loop() {
-      oled.clearDisplay();
-      oled.setTextSize(1);
-
       // タクトスイッチの状態取得
       switch_left_1 = digitalRead(SWITCH_LEFT_1_PIN);
       switch_left_2 = digitalRead(SWITCH_LEFT_2_PIN);
@@ -102,12 +101,15 @@ void loop() {
       }
       if (switch_left_1 || switch_right_1) {
             tone(BUZZER_PIN, 700, 100);
-            delay(100);
+            delay(150);
       }
       if (switch_left_2 || switch_right_2) {
             tone(BUZZER_PIN, 500, 100);
-            delay(100);
+            delay(150);
       }
+
+      oled.clearDisplay();
+      oled.setTextSize(1);
 
       if (set_mode == 0) {
             if (display_mode != 0) oled.fillTriangle(10, 53, 0, 58, 10, 63, WHITE);
@@ -125,25 +127,50 @@ void loop() {
             oled.setTextSize(2);
       }
 
+      Serial.write('a');
+
       if (display_mode == 0) {
             oled.setTextSize(2);
             if (set_mode == 0) {
-                  mode = 0;
                   oled.setCursor(40, 20);
                   oled.print("main");
+
+                  mode = 0;
             } else if (set_mode == 1) {
                   oled.setCursor(22, 20);
                   oled.print("offence");
+
+                  if (abs(set_value) == 1) mode = 1 - mode;
             } else if (set_mode == 2) {
                   oled.setCursor(16, 20);
                   oled.print("diffence");
+
+                  if (abs(set_value) == 1) mode = 2 - mode;
             }
 
-            Serial.write('a');
             Serial.write(display_mode);
             Serial.write(mode);
 
       } else if (display_mode == 1) {
+            if (set_mode == 0) {
+                  oled.setCursor(16, 20);
+                  oled.print("dribbler");
+
+                  dribbler = 0;
+            } else if (set_mode == 1) {
+                  oled.setCursor(20, 29);
+                  oled.print("hold");
+                  oled.setCursor(84, 29);
+                  oled.print("kick");
+
+                  if (set_value == -1) dribbler = 1;
+                  if (set_value == 1) dribbler = 2;
+            }
+
+            Serial.write(display_mode);
+            Serial.write(dribbler);
+
+      } else if (display_mode == 2) {
             if (set_mode == 0) {
                   oled.setCursor(40, 20);
                   oled.print("ball");
@@ -161,25 +188,33 @@ void loop() {
                   oled.drawFastVLine(96, 0, 64, WHITE);
             }
 
-            Serial.write('a');
             Serial.write(display_mode);
-
-      } else if (display_mode == 2) {
-            if (set_mode == 0) {
-                  oled.setCursor(16, 20);
-                  oled.print("dribbler");
-            } else if (set_mode == 1) {
-                  oled.setCursor(20, 29);
-                  oled.print("hold");
-                  oled.setCursor(84, 29);
-                  oled.print("kick");
-            }
-
-            Serial.write('a');
-            Serial.write(display_mode);
-            Serial.write(dribbler);
 
       } else if (display_mode == 3) {
+            if (set_mode == 0) {
+                  oled.setCursor(16, 20);
+                  oled.print("speed");
+            } else if (set_mode == 1) {
+                  oled.setCursor(46, 20);
+                  oled.print("normal");
+                  oled.setCursor(58, 30);
+                  oled.print(speed);
+
+                  speed += set_value;
+            } else if (set_mode == 1) {
+                  oled.setCursor(46, 20);
+                  oled.print("normal");
+                  oled.setCursor(58, 30);
+                  oled.print(line_speed);
+
+                  line_speed += set_value;
+            }
+
+            Serial.write(display_mode);
+            Serial.write(speed);
+            Serial.write(line_speed);
+
+      } else if (display_mode == 4) {
             if (set_mode == 0) {
                   oled.setCursor(40, 20);
                   oled.print("line");
@@ -242,14 +277,13 @@ void loop() {
                   } else {
                         oled.drawRect(36, 31, 9, 4, WHITE);
                   }
+
+                  line_reset = abs(set_value);
             }
-            Serial.write('a');
+
             Serial.write(display_mode);
+            Serial.write(line_reset);
       }
       oled.display();
-
-      Serial.write('a');
-      Serial.write(mode);
-      Serial.write(speed);
-      Serial.write(line_speed);
+      Serial.flush();
 }
