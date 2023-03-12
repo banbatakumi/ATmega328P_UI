@@ -33,28 +33,35 @@ void display_mode_speed();
 void display_mode_dribbler();
 void display_mode_imu();
 void display_mode_ball_catch();
+void display_mode_cam();
 
 bool switch_left_1, switch_left_2, switch_right_1, switch_right_2;
 
 int8_t display_mode = 0, set_mode = 0;
 
-int8_t set_value;
+int8_t set_value = 0;
 
 // 受け取るデータ
 bool line_check[11];
 
 uint8_t ball_catch_left, ball_catch_right, ball_catch_all;
 
-int8_t yaw, set_yaw;
+int16_t goal_angle, goal_wide;
+
+int16_t yaw;
 
 int16_t ball_angle, ball_distance;
 
 // 送るデータ
 uint8_t mode = 0;
 
-uint8_t speed = 60, line_speed = 75;
+uint8_t move_speed = 60, line_move_speed = 70;
+
+uint8_t goal_angle_mode = 2;
 
 uint8_t line_reset = 0;
+
+int16_t set_yaw = 0;
 
 uint8_t dribbler = 0;
 
@@ -83,6 +90,15 @@ void setup() {   // 起動音
       oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);   // OLED初期設定
 
       oled.setTextColor(SSD1306_WHITE);
+
+      display_mode_main();
+      display_mode_ball();
+      display_mode_line();
+      display_mode_speed();
+      display_mode_dribbler();
+      display_mode_imu();
+      display_mode_ball_catch();
+      display_mode_cam();
 }
 
 void loop() {
@@ -98,7 +114,7 @@ void loop() {
             set_value = -1;
       }
       if (switch_right_1) {
-            if (set_mode == 0 && display_mode < 6) display_mode += 1;
+            if (set_mode == 0 && display_mode < 7) display_mode += 1;
             set_value = 1;
       }
       if (switch_left_2 && mode == 0) set_mode -= 1;
@@ -122,12 +138,10 @@ void loop() {
             pixels.setPixelColor(1, pixels.Color(0, 250, 0));
 
             if (display_mode > 0) oled.fillTriangle(10, 53, 0, 58, 10, 63, WHITE);
-            if (display_mode < 6) oled.fillTriangle(117, 53, 128, 58, 117, 63, WHITE);
-
-            oled.setTextSize(2);
+            if (display_mode < 7) oled.fillTriangle(117, 53, 128, 58, 117, 63, WHITE);
       }
-      pixels.show();
 
+      oled.setTextSize(2);
       if (display_mode == 0) {
             display_mode_main();
       } else if (display_mode == 1) {
@@ -142,14 +156,17 @@ void loop() {
             display_mode_dribbler();
       } else if (display_mode == 6) {
             display_mode_ball_catch();
+      } else if (display_mode == 7) {
+            display_mode_cam();
       }
+
+      pixels.show();
 
       oled.display();
       Serial.flush();
 }
 
 void display_mode_main() {
-      oled.setTextSize(2);
       if (set_mode == 0) {
             oled.setCursor(40, 20);
             oled.print("main");
@@ -166,15 +183,34 @@ void display_mode_main() {
 
             if (abs(set_value) == 1) mode = 2 - mode;
       } else if (set_mode == 3) {
-            set_mode = 2;
+            oled.setCursor(16, 20);
+            oled.println("PID test");
+
+            if (abs(set_value) == 1) mode = 3 - mode;
+      } else if (set_mode == 4) {
+            oled.setCursor(8, 20);
+            oled.print("ball test");
+
+            if (abs(set_value) == 1) mode = 4 - mode;
+      } else if (set_mode == 5) {
+            set_mode = 4;
       } else if (set_mode == -1) {
             set_mode = 0;
+      }
+
+      if (mode != 0) {
+            oled.setTextSize(1);
+            oled.setCursor(34, 40);
+            oled.print("moving now");
       }
 
       if (abs(set_value) == 1 || set_mode == 0) {
             Serial.write('a');
             Serial.write(display_mode);
             Serial.write(mode);
+            Serial.write(move_speed);
+            Serial.write(line_move_speed);
+            Serial.write(goal_angle_mode);
       }
 }
 
@@ -185,9 +221,9 @@ void display_mode_dribbler() {
 
             dribbler = 0;
       } else if (set_mode == 1) {
-            oled.setCursor(20, 29);
+            oled.setCursor(10, 20);
             oled.print("hold");
-            oled.setCursor(84, 29);
+            oled.setCursor(70, 20);
             oled.print("kick");
 
             if (set_value == -1) dribbler = 1;
@@ -208,29 +244,31 @@ void display_mode_speed() {
             oled.setCursor(34, 20);
             oled.print("speed");
       } else if (set_mode == 1) {
-            oled.setCursor(46, 20);
-            oled.print("normal");
-            oled.setCursor(58, 30);
-            oled.print(speed);
+            oled.setCursor(34, 15);
+            oled.print("speed");
+            oled.setCursor(46, 40);
+            oled.print(move_speed);
+            oled.print("%");
 
-            speed += set_value;
+            move_speed += set_value * 5;
       } else if (set_mode == 2) {
-            oled.setCursor(52, 20);
-            oled.print("line");
-            oled.setCursor(58, 30);
-            oled.print(line_speed);
+            oled.setCursor(4, 15);
+            oled.print("line speed");
+            oled.setCursor(46, 40);
+            oled.print(line_move_speed);
+            oled.print("%");
 
-            line_speed += set_value;
+            line_move_speed += set_value * 5;
       } else if (set_mode == 3) {
-            set_mode = 1;
+            set_mode = 2;
       } else if (set_mode == -1) {
             set_mode = 0;
       }
 
       Serial.write('a');
       Serial.write(display_mode);
-      Serial.write(speed);
-      Serial.write(line_speed);
+      Serial.write(move_speed);
+      Serial.write(line_move_speed);
 }
 
 void display_mode_ball() {
@@ -248,6 +286,7 @@ void display_mode_ball() {
             oled.setCursor(40, 20);
             oled.print("ball");
       } else if (set_mode == 1) {
+            oled.setTextSize(1);
             oled.setCursor(0, 0);
             oled.print("ang: ");
             oled.println(ball_angle);
@@ -306,9 +345,9 @@ void display_mode_line() {
             }
 
             if (line_check[5]) {
-                  oled.fillRect(63, 35, 4, 9, WHITE);
+                  oled.fillRect(63, 53, 4, 9, WHITE);
             } else {
-                  oled.drawRect(63, 35, 4, 9, WHITE);
+                  oled.drawRect(63, 53, 4, 9, WHITE);
             }
             if (line_check[6]) {
                   oled.fillRect(63, 44, 4, 9, WHITE);
@@ -316,15 +355,15 @@ void display_mode_line() {
                   oled.drawRect(63, 44, 4, 9, WHITE);
             }
             if (line_check[7]) {
-                  oled.fillRect(63, 53, 4, 9, WHITE);
+                  oled.fillRect(63, 35, 4, 9, WHITE);
             } else {
-                  oled.drawRect(63, 53, 4, 9, WHITE);
+                  oled.drawRect(63, 35, 4, 9, WHITE);
             }
 
             if (line_check[8]) {
-                  oled.fillRect(54, 31, 9, 4, WHITE);
+                  oled.fillRect(36, 31, 9, 4, WHITE);
             } else {
-                  oled.drawRect(54, 31, 9, 4, WHITE);
+                  oled.drawRect(36, 31, 9, 4, WHITE);
             }
             if (line_check[9]) {
                   oled.fillRect(45, 31, 9, 4, WHITE);
@@ -332,9 +371,9 @@ void display_mode_line() {
                   oled.drawRect(45, 31, 9, 4, WHITE);
             }
             if (line_check[10]) {
-                  oled.fillRect(36, 31, 9, 4, WHITE);
+                  oled.fillRect(54, 31, 9, 4, WHITE);
             } else {
-                  oled.drawRect(36, 31, 9, 4, WHITE);
+                  oled.drawRect(54, 31, 9, 4, WHITE);
             }
 
             line_reset = abs(set_value);
@@ -361,8 +400,9 @@ void display_mode_imu() {
             oled.setCursor(46, 20);
             oled.print("imu");
       } else if (set_mode == 1) {
-            oled.setCursor(0, 0);
-            oled.print("yaw: ");
+            oled.setCursor(10, 10);
+            oled.print("yaw");
+            oled.setCursor(10, 30);
             oled.print(yaw);
             oled.drawCircle(96, 32, 29, WHITE);
             oled.fillCircle(96 + 29 * cos((yaw * -1 - 90) * PI / 180.000), 32 + 29 * sin((yaw * -1 - 90) * PI / 180.000), 3, WHITE);
@@ -406,4 +446,38 @@ void display_mode_ball_catch() {
 
       Serial.write('a');
       Serial.write(display_mode);
+}
+
+void display_mode_cam() {
+      if (Serial.read() == 'a') {
+            goal_angle = Serial.read() - 106;
+            goal_wide = Serial.read();
+      }
+
+      if (set_mode == 0) {
+            oled.setCursor(46, 20);
+            oled.print("cam");
+      } else if (set_mode == 1) {
+            oled.setCursor(0, 0);
+            oled.print("goal angle mode: ");
+            oled.println(goal_angle_mode);
+            oled.print("goal angle: ");
+            oled.println(goal_angle);
+            oled.print("goal wide: ");
+            oled.println(goal_wide);
+            if (set_value == -1) goal_angle_mode = 1;
+            if (set_value == 1) goal_angle_mode = 2;
+      } else if (set_mode == 2) {
+            oled.setCursor(28, 20);
+            oled.print("cam of");
+            if (abs(set_value) == 1) goal_angle_mode = 0;
+      } else if (set_mode == 3) {
+            set_mode = 2;
+      } else if (set_mode == -1) {
+            set_mode = 0;
+      }
+
+      Serial.write('a');
+      Serial.write(display_mode);
+      Serial.write(goal_angle_mode);
 }
