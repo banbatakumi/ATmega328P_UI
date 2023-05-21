@@ -53,7 +53,7 @@ int16_t ball_angle, ball_distance;
 
 // 送るデータ
 uint8_t mode = 0;
-uint8_t move_speed = 70, line_move_speed = 80, catch_move_speed = 70;
+uint8_t move_speed = 80, line_move_speed = 90, catch_move_speed = 80;
 uint8_t goal_angle_mode = 1;
 uint8_t line_reset = 0;
 int16_t set_yaw = 0;
